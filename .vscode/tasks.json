@@ -8,22 +8,22 @@
             "args": [
                 "/EHsc",
                 "/Zi",
-                "${file}",
+                "${workspaceFolder}\\mpi_analytics.cpp",
                 "/I",
                 "C:\\Program Files (x86)\\Microsoft SDKs\\MPI\\Include",
                 "/link",
                 "C:\\Program Files (x86)\\Microsoft SDKs\\MPI\\Lib\\x64\\msmpi.lib"
             ],
             "options": {
-                "cwd": "${fileDirname}"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [
                 "$msCompile"
-            ]
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         }
     ]
 }

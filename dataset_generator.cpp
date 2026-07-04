@@ -48,9 +48,9 @@ int main()
     cout << endl;
 
     
-generateDataset("small.csv", 1000000);
-generateDataset("medium.csv", 10000000);
-generateDataset("large.csv", 100000000);
+    generateDataset("dataset/small.csv", 1000000);
+    generateDataset("dataset/medium.csv", 10000000);
+    generateDataset("dataset/large.csv", 100000000);
 
     cout << endl;
     cout << "All datasets generated successfully!" << endl;
