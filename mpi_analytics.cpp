@@ -94,12 +94,25 @@ int main(int argc, char* argv[])
         MPI_COMM_WORLD
     );
 
-    double localSum=0;
+    double localSum = 0;
 
-    for(double v:local)
-        localSum+=v;
+    double localMin = local[0];
+    double localMax = local[0];
 
-    double globalSum=0;
+    for(double v : local)
+    {
+        localSum += v;
+
+        if(v < localMin)
+            localMin = v;
+
+        if(v > localMax)
+            localMax = v;
+    }
+
+    double globalSum = 0;
+    double globalMin = 0;
+    double globalMax = 0;
 
     MPI_Reduce(
         &localSum,
@@ -110,7 +123,26 @@ int main(int argc, char* argv[])
         0,
         MPI_COMM_WORLD
     );
-    
+    MPI_Reduce(
+        &localMin,
+        &globalMin,
+        1,
+        MPI_DOUBLE,
+        MPI_MIN,
+        0,
+        MPI_COMM_WORLD
+    );
+
+    MPI_Reduce(
+            &localMax,
+            &globalMax,
+            1,
+            MPI_DOUBLE,
+            MPI_MAX,
+            0,
+            MPI_COMM_WORLD
+        );
+        
     double end=MPI_Wtime();
     
     if(rank==0)
@@ -121,6 +153,8 @@ int main(int argc, char* argv[])
         cout << "Records           : " << n << endl;
         cout << "Processes Used    : " << size << endl;
         cout << "Mean              : " << mean << endl;
+        cout << "Minimum           : " << globalMin << endl;
+        cout << "Maximum           : " << globalMax << endl;
         cout << "Execution Time    : "
             << end - start
             << " seconds" << endl;
