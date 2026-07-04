@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <iomanip>
 
 using namespace std;
 
@@ -296,7 +297,35 @@ int main(int argc, char* argv[])
         0,
         MPI_COMM_WORLD
     );
+    // ---------- Local Histogram ----------
+    vector<int> localHistogram(10, 0);
 
+    for(double v : localValue1)
+    {
+        int bin = static_cast<int>(v / 1000);
+
+        if(bin > 9)
+            bin = 9;
+
+        localHistogram[bin]++;
+    }
+    vector<int> gatheredHistogram;
+
+    if(rank == 0)
+    {
+        gatheredHistogram.resize(size * 10);
+    }
+
+    MPI_Gather(
+        localHistogram.data(),
+        10,
+        MPI_INT,
+        gatheredHistogram.data(),
+        10,
+        MPI_INT,
+        0,
+        MPI_COMM_WORLD
+    );
 
     double end=MPI_Wtime();
         
@@ -305,6 +334,46 @@ int main(int argc, char* argv[])
         double variance = globalVariance / n;
         double standardDeviation = sqrt(variance);
         double correlation = globalNumerator / sqrt(globalDx2 * globalDy2);
+        vector<int> finalHistogram(10,0);
+
+        for(int p = 0; p < size; p++)
+        {
+            for(int i = 0; i < 10; i++)
+            {
+                finalHistogram[i] += gatheredHistogram[p * 10 + i];
+            }
+        }
+    ofstream out("results/mpi_results.csv");
+
+    if(!out)
+    {
+        cout << "Failed to create results file." << endl;
+    }
+    else
+    {
+
+        out << "Metric,Value\n";
+        out << "Dataset Size," << datasetSize << "\n";
+        out << "Records," << n << "\n";
+        out << "Processes Used," << size << "\n";
+        out << "Mean," << mean << "\n";
+        out << "Minimum," << globalMin << "\n";
+        out << "Maximum," << globalMax << "\n";
+        out << "Variance," << variance << "\n";
+        out << "Standard Deviation," << standardDeviation << "\n";
+        out << "Pearson Correlation," << correlation << "\n";
+        out << "Execution Time (s)," << end - start << "\n";
+        out << "\nHistogram Bin,Count\n";
+
+        for(int i = 0; i < 10; i++)
+        {
+            out << i * 1000
+                << "-" << (i + 1) * 1000 - 1
+                << ","
+                << finalHistogram[i]
+                << "\n";
+        }
+        out.close();
 
         cout << "\n===== MPI Analytics Result =====\n";
         cout << "Records           : " << n << endl;
@@ -315,9 +384,22 @@ int main(int argc, char* argv[])
         cout << "Variance          : " << variance << endl;
         cout << "Std Deviation     : " << standardDeviation << endl;
         cout << "Pearson Correlation : " << correlation << endl;
+        cout << "\n========== HISTOGRAM ==========\n";
+
+            for(int i = 0; i < 10; i++)
+            {
+            cout << setw(4) << i * 1000
+                << " - "
+                << setw(5) << (i + 1) * 1000 - 1
+                << " : "
+                << finalHistogram[i]
+                << endl;
+            }
         cout << "Execution Time    : " << end - start << " seconds" << endl;
+        cout << "Results saved to results/mpi_results.csv" << endl;
     }
-            
+}
+       
 
     MPI_Finalize();
     return 0;

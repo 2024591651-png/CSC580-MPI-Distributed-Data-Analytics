@@ -112,7 +112,7 @@ void detectOutliers(const vector<double>& d){
 }
 
 void exportCSV(){
-    ofstream out("results.csv");
+    ofstream out("results/sequential_results.csv");
     out<<"Metric,Value\n";
     out<<"Mean Value1,"<<calculateMean(value1)<<"\n";
     out<<"Mean Value2,"<<calculateMean(value2)<<"\n";
@@ -197,6 +197,6 @@ int main(int argc, char* argv[]){
 
     cout<<"\nExecution Time: "<<ms.count()<<" ms\n";
 //results
-    cout<<"Results saved to results.csv\n";
+    cout<<"Results saved to results/sequential_results.csv\n";
     return 0;
 }
