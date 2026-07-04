@@ -8,7 +8,7 @@
 
 using namespace std;
 
-void readCSV(string filename, vector<double>& value1)
+void readCSV(string filename, vector<double>& value1, vector<double>& value2)
 {
     ifstream file(filename);
 
@@ -20,22 +20,21 @@ void readCSV(string filename, vector<double>& value1)
 
     string line,a,b;
 
-    getline(file,line);
+    getline(file,line);   // Skip header
 
     while(getline(file,line))
     {
         stringstream ss(line);
 
         getline(ss,a,',');
-
         getline(ss,b);
 
         value1.push_back(stod(a));
+        value2.push_back(stod(b));
     }
 
     file.close();
 }
-
 int main(int argc, char* argv[])
 {
     int rank,size;
@@ -45,7 +44,8 @@ int main(int argc, char* argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    vector<double> data;
+    vector<double> value1;
+    vector<double> value2;
 
     string filename;
 
@@ -76,14 +76,14 @@ int main(int argc, char* argv[])
 
     if (rank == 0)
     {
-        readCSV(filename, data);
+        readCSV(filename, value1, value2);
 
-        cout << "Records : " << data.size() << endl;
+        cout << "Records : " << value1.size() << endl;
     }
     int n = 0;
 
     if(rank==0)
-        n = static_cast<int>(data.size());
+        n = static_cast<int>(value1.size());
 
     MPI_Bcast(&n,1,MPI_INT,0,MPI_COMM_WORLD);
 
@@ -109,17 +109,29 @@ int main(int argc, char* argv[])
 
     int localSize=n/size;
 
-    vector<double> local(localSize);
+    vector<double> localValue1(localSize);
+    vector<double> localValue2(localSize);
         if(localSize == 0)
         {
             MPI_Finalize();
             return 0;
         }
     MPI_Scatter(
-        data.data(),
+        value1.data(),
         localSize,
         MPI_DOUBLE,
-        local.data(),
+        localValue1.data(),
+        localSize,
+        MPI_DOUBLE,
+        0,
+        MPI_COMM_WORLD
+    );
+
+    MPI_Scatter(
+        value2.data(),
+        localSize,
+        MPI_DOUBLE,
+        localValue2.data(),
         localSize,
         MPI_DOUBLE,
         0,
@@ -127,10 +139,10 @@ int main(int argc, char* argv[])
     );
 
     double localSum = 0;
-    double localMin = local[0];
-    double localMax = local[0];
+    double localMin = localValue1[0];
+    double localMax = localValue1[0];
 
-    for(double v : local)
+    for(double v : localValue1)
     {
         localSum += v;
 
@@ -145,6 +157,9 @@ int main(int argc, char* argv[])
     double globalMin = 0;
     double globalMax = 0;
     double globalVariance = 0;
+    double localNumerator = 0;
+    double localDx2 = 0;
+    double localDy2 = 0;
     //Reduce Sum
     MPI_Reduce(
         &localSum,
@@ -193,14 +208,88 @@ int main(int argc, char* argv[])
     //Calculate Local Variance
     double localVariance = 0;
 
-    for(double v : local)
+    double meanValue2 = 0;
+
+    // Calculate local sum of Value2
+    double localSum2 = 0;
+    for(double v : localValue2)
     {
-        localVariance += (v - mean) * (v - mean);
+        localSum2 += v;
+    }
+
+    double globalSum2 = 0;
+
+    MPI_Reduce(
+        &localSum2,
+        &globalSum2,
+        1,
+        MPI_DOUBLE,
+        MPI_SUM,
+        0,
+        MPI_COMM_WORLD
+    );
+
+    if(rank == 0)
+    {
+        meanValue2 = globalSum2 / n;
+    }
+
+    MPI_Bcast(
+        &meanValue2,
+        1,
+        MPI_DOUBLE,
+        0,
+        MPI_COMM_WORLD
+    );
+
+    for(int i = 0; i < localSize; i++)
+    {
+        double dx = localValue1[i] - mean;
+        double dy = localValue2[i] - meanValue2;
+
+        localVariance += dx * dx;
+
+        localNumerator += dx * dy;
+        localDx2 += dx * dx;
+        localDy2 += dy * dy;
     }
     //Reduce Variance
     MPI_Reduce(
         &localVariance,
         &globalVariance,
+        1,
+        MPI_DOUBLE,
+        MPI_SUM,
+        0,
+        MPI_COMM_WORLD
+    );
+    double globalNumerator = 0;
+    double globalDx2 = 0;
+    double globalDy2 = 0;
+
+    MPI_Reduce(
+        &localNumerator,
+        &globalNumerator,
+        1,
+        MPI_DOUBLE,
+        MPI_SUM,
+        0,
+        MPI_COMM_WORLD
+    );
+
+    MPI_Reduce(
+        &localDx2,
+        &globalDx2,
+        1,
+        MPI_DOUBLE,
+        MPI_SUM,
+        0,
+        MPI_COMM_WORLD
+    );
+
+    MPI_Reduce(
+        &localDy2,
+        &globalDy2,
         1,
         MPI_DOUBLE,
         MPI_SUM,
@@ -215,6 +304,7 @@ int main(int argc, char* argv[])
     {
         double variance = globalVariance / n;
         double standardDeviation = sqrt(variance);
+        double correlation = globalNumerator / sqrt(globalDx2 * globalDy2);
 
         cout << "\n===== MPI Analytics Result =====\n";
         cout << "Records           : " << n << endl;
@@ -224,6 +314,7 @@ int main(int argc, char* argv[])
         cout << "Maximum           : " << globalMax << endl;
         cout << "Variance          : " << variance << endl;
         cout << "Std Deviation     : " << standardDeviation << endl;
+        cout << "Pearson Correlation : " << correlation << endl;
         cout << "Execution Time    : " << end - start << " seconds" << endl;
     }
             
