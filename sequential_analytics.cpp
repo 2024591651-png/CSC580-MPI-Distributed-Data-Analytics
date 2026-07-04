@@ -112,7 +112,7 @@ void detectOutliers(const vector<double>& d){
 }
 
 void exportCSV(){
-    ofstream out("results.csv");
+    ofstream out("results/sequential_results.csv");
     out<<"Metric,Value\n";
     out<<"Mean Value1,"<<calculateMean(value1)<<"\n";
     out<<"Mean Value2,"<<calculateMean(value2)<<"\n";
@@ -122,23 +122,59 @@ void exportCSV(){
     out<<"StdDev Value1,"<<calculateStandardDeviation(value1)<<"\n";
     out<<"Pearson Correlation,"<<calculatePearsonCorrelation(value1,value2)<<"\n";
 }
+void readCSV(string filename, vector<double>& value1, vector<double>& value2)
+{
+    ifstream file(filename);
 
-int main(){
-    auto start=chrono::high_resolution_clock::now();
+    if(!file)
+    {
+        cout << "Cannot open " << filename << endl;
+        exit(1);
+    }
 
-    ifstream file("small.csv");
-    if(!file){ cout<<"Cannot open small.csv\n"; return 1; }
+    string line, a, b;
 
-    string line,a,b;
-    getline(file,line);
-    while(getline(file,line)){
+    getline(file, line); // Skip header
+
+    while(getline(file, line))
+    {
         stringstream ss(line);
-        getline(ss,a,',');
-        getline(ss,b);
+
+        getline(ss, a, ',');
+        getline(ss, b);
+
         value1.push_back(stod(a));
         value2.push_back(stod(b));
     }
+
     file.close();
+}
+int main(int argc, char* argv[]){
+    string filename;
+
+    if(argc < 2)
+    {
+        cout << "Usage: sequential_analytics <dataset_size>" << endl;
+        return 1;
+    }
+
+    int datasetSize = stoi(argv[1]);
+
+    if(datasetSize == 1000000)
+        filename = "dataset/small.csv";
+    else if(datasetSize == 10000000)
+        filename = "dataset/medium.csv";
+    else if(datasetSize == 100000000)
+        filename = "dataset/large.csv";
+    else
+    {
+        cout << "Invalid dataset size!" << endl;
+        return 1;
+    }
+
+    auto start = chrono::high_resolution_clock::now();
+
+    readCSV(filename, value1, value2);
 
     cout<<"Records: "<<value1.size()<<"\n";
     cout<<"Mean1: "<<calculateMean(value1)<<'\n';
@@ -160,6 +196,7 @@ int main(){
     auto ms=chrono::duration_cast<chrono::milliseconds>(end-start);
 
     cout<<"\nExecution Time: "<<ms.count()<<" ms\n";
-    cout<<"Results saved to results.csv\n";
+//results
+    cout<<"Results saved to results/sequential_results.csv\n";
     return 0;
 }

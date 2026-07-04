@@ -1,0 +1,15 @@
+# Build files
+*.exe
+*.obj
+*.pdb
+*.ilk
+
+# Visual Studio
+*.idb
+*.ipch
+
+# VS Code
+.vscode/*.db
+
+# Temporary files
+*.log
